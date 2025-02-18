@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Перевірка рукописних підписів на автентичність</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        .upload-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 50px;
+        }
+        .upload-box {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            width: 45%;
+            text-align: center;
+        }
+        .upload-box img {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 10px;
+        }
+		button {
+		    border: 2px #ccc;
+			border-radius: 0.25vw;
+		}		
+    </style>
+</head>
+<body>
+    <h1>Перевірка рукописних підписів на автентичність</h1>
+    <p>Оберіть два зображення підписів</p>
+
+    <div class="upload-container">
+        <div class="upload-box">
+            <h3>Оригінальний підпис</h3>
+            <input type="file" id="image1" accept="image/*" onchange="previewImage(event, 'preview1')">
+            <img id="preview1" alt="Preview Image 1">
+        </div>
+
+        <div class="upload-box">
+            <h3>Підпис на перевірку</h3>
+            <input type="file" id="image2" accept="image/*" onchange="previewImage(event, 'preview2')">
+            <img id="preview2" alt="Preview Image 2">
+        </div>
+    </div>
+	<p>Оберіть метод перевірки</p>
+	
+	<select id="options">
+            <option value="smallResnet101_dropoutRegularized256_lr0.001_decay0.8_epochs50_lossTripletSemiHardLoss0.5">smallResnet101_dropoutRegularized256_lr0.001_decay0.8_epochs50_lossTripletSemiHardLoss0.5</option>  
+			<option value="smallResnet101_regularized256_lr0.0001_decay0.9_epochs50_lossTripletSemiHardLoss0.5">smallResnet101_regularized256_lr0.0001_decay0.9_epochs50_lossTripletSemiHardLoss0.5</option>  
+			<option value="smallEfficientNet_regularized64_lr0.001_decay0.8_epochs50_lossContrastiveLoss_0.5">smallEfficientNet_regularized64_lr0.001_decay0.8_epochs50_lossContrastiveLoss_0.5</option> 
+			<option value="smallEfficientNet_regularized256_lr0.001_decay0.8_epochs50_lossContrastiveLoss_0.5">smallEfficientNet_regularized256_lr0.001_decay0.8_epochs50_lossContrastiveLoss_0.5</option>  
+
+
+        </select>
+    </div>
+	<div style="margin: 20px">
+		<button style="width: 10vw; height: 5vh" onclick = "submitData()"><font size = "5">Перевірити</font></button>
+	</div>
+    <div id="result">
+        <p><font size = "6"><strong>Результат:</strong> <span id="predict"></span></font></p>
+        <p><font size = "6"><strong>Ймовiрнiсть: </strong>оригінал: <span id="prob_orig"/></span>% підробка: <span id="prob_forge"/></span>% ішне: <span id="prob_other"/></span>%</font></p>
+    </div>
+    <script>
+        function previewImage(event, previewId) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById(previewId).src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+		
+		async function submitData() {
+			const predictSpan = document.getElementById('predict');
+			const probSpan_orig = document.getElementById('prob_orig');
+			const probSpan_forge = document.getElementById('prob_forge');
+			const probSpan_other = document.getElementById('prob_other');
+            const image1 = document.getElementById('image1').files[0];
+            const image2 = document.getElementById('image2').files[0];
+            const option = document.getElementById('options').value;
+
+            if (!image1 || !image2) {
+                alert('Будь ласка, оберіть обидва зображення!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image1', image1);  
+            formData.append('image2', image2);
+            formData.append('option', option);
+
+            try {
+                const response = await fetch('http://192.168.0.185:8080/check_signatures', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    predictSpan.textContent = data.predict;
+                    probSpan_orig.textContent = data.prob[0];
+					probSpan_forge.textContent = data.prob[1];
+                    probSpan_other.textContent = data.prob[2];
+										
+                } else {
+                    alert('Помилка при відправці даних на сервер');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Виникла помилка під час запиту');
+            }
+        }
+    </script>
+</body>
+</html>
